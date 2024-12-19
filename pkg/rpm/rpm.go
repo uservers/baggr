@@ -12,6 +12,10 @@ import (
 	"github.com/uservers/baggr/pkg/spec"
 )
 
+const (
+	DIR = "%DIR%"
+)
+
 //go:embed template/spec.tmpl
 var Template string
 
@@ -48,8 +52,6 @@ func (w *Worker) BuildPackages(ctx context.Context, manifest *spec.Manifest, opt
 	if err != nil {
 		return results, fmt.Errorf("packaging RPMs: %w", err)
 	}
-
-	// w.implementation.VerifyPackages()
 
 	return results, nil
 }

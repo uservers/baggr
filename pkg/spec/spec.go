@@ -17,7 +17,7 @@ func NewManifestFromFile(path string) (*Manifest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading file: %w", err)
 	}
-	var manifest = &Manifest{}
+	manifest := &Manifest{}
 	if err := yaml.Unmarshal(f, manifest); err != nil {
 		return nil, err
 	}

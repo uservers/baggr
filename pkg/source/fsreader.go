@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"path/filepath"
 
 	"github.com/uservers/baggr/pkg/spec"
 )
@@ -24,7 +23,7 @@ func NewFilesystemReader(myfs fs.StatFS) *FilesystemReader {
 }
 
 // ListDirFiles returns a list of al the files in a directory
-func (fsr *FilesystemReader) ListDirFiles(ctx context.Context, path string) ([]*spec.File, error) {
+func (fsr *FilesystemReader) ListDirFiles(_ context.Context, path string) ([]*spec.File, error) {
 	if fsr.FS == nil {
 		return nil, fmt.Errorf("reader filesystem not set")
 	}
@@ -38,7 +37,7 @@ func (fsr *FilesystemReader) ListDirFiles(ctx context.Context, path string) ([]*
 		}
 
 		res = append(res, &spec.File{
-			Source: filepath.Join(subPath),
+			Source: subPath,
 			// Destination: "",
 		})
 		return nil
@@ -50,7 +49,7 @@ func (fsr *FilesystemReader) ListDirFiles(ctx context.Context, path string) ([]*
 
 // OpenPath opens a path from the underlying FS. If fails it will return an error
 // if the path cannot be openened because it is a directory it will return ErrIsDir
-func (fsr *FilesystemReader) OpenPath(ctx context.Context, specFile *spec.File) (io.Reader, error) {
+func (fsr *FilesystemReader) OpenPath(_ context.Context, specFile *spec.File) (io.Reader, error) {
 	if fsr.FS == nil {
 		return nil, fmt.Errorf("reader filesystem not set")
 	}
@@ -69,5 +68,4 @@ func (fsr *FilesystemReader) OpenPath(ctx context.Context, specFile *spec.File) 
 		return nil, fmt.Errorf("opening file: %w", err)
 	}
 	return f, nil
-
 }
