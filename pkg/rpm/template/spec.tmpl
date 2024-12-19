@@ -1,0 +1,117 @@
+Summary: {{ .Manifest.Summary }}
+Name: {{ .Manifest.Name }}
+Version: {{ .Version }}
+Release: {{ .Release }}
+#Epoch: 1
+License: {{ .Manifest.License }}
+{{/*
+	Group: System 
+	Group ya no: https://fedoraproject.org/wiki/RPMGroups
+*/}}
+URL: {{ .Manifest.URL }}
+BuildArch: noarch
+BuildRoot: %{_tmppath}/%{name}-root
+{{if .Manifest.RequiresString }}
+Requires: {{ .Manifest.RequiresString }}
+{{ end }}
+%define _source_payload w7.xzdio
+%define _binary_payload w7.xzdio
+%define __check_files %{nil}
+%define _binaries_in_noarch_packages_terminate_build   0
+%define __spec_install_pre /bin/true
+{{ if .Manifest.NoDeps }}
+Autoreq:0
+%define __find_requires %{nil}
+{{ end }}
+
+%description
+{{ .Manifest.Description }}
+
+{{/* Componentes */}}
+{{if .Manifest.Components }}
+{{range .Manifest.Components }}
+%package {{ .Name }}
+Group: System
+{{if .NoDeps }}
+Autoreq:0
+%define __find_requires %{nil}
+{{ end }}
+{{if .RequiresString }}
+Requires: {{ .RequiresString }}
+{{ end }}
+Summary: {{ .Summary }}
+%description {{ .Name }}
+{{ .Description }}
+{{ end }}
+{{ end }}
+{{/*  /Componentes */}}
+
+%prep
+# M2RPM DATAPREP
+# {#- En la version de perl, aqui copiaba los files. Pero tal vez sea mejor fuera, en el Pyhton #}
+{{ .PrepFileCommands }}
+
+%build
+#M2RPM DATABUILD
+
+%install
+#M2RPM DATAPREP
+exit
+#rm -rf %{buildroot}
+#%makeinstall
+#%find_lang %{name}
+
+%clean
+echo "Borrando tree"
+rm -rf %{buildroot}
+
+#%post
+
+#%postun
+{{/* Archivos de rpm principal */}}
+%files
+%defattr(-, root, root)
+# {#-M2RPM DATAFILES -#}
+{{range .Manifest.Files }}
+%attr({{ .Mode }}, {{ .UID }}, {{ .GID }}){{ .Destination }}
+{{/*-Aqui podria ir solo el file si no tiene args, pero a la mejor esta mejor completarlos antes */}}
+{{ end }}
+{{/* /Archivos */}}
+
+{{/* Archivos de componentes */}}
+{{if .Manifest.Components }}
+# M2RPM DATAFILESCOMPS
+{{range .Manifest.Components }}
+{{if .Files }}
+%files {{ .Name }}
+%defattr(-, root, root)
+{{range .Files }}
+%attr({{ .Mode }}, {{ .UID }}, {{ .GID }}){{ .Destination }}
+{{ end }}
+{{ else }}
+# Component {{ .Name }} not rpmfied because it does not provide any files.
+{{ end }}
+{{ end }}
+{{ end }}
+{{/* /Archivos comps */}}
+
+#%doc AUTHORS COPYING ChangeLog NEWS README TODO
+#%{_bindir}/*
+#%{_libdir}/*.so.*
+#%{_datadir}/%{name}
+#%{_mandir}/man8/*
+
+#%files devel
+#%defattr(-, root, root)
+#%doc HACKING
+#%{_libdir}/*.a
+#%{_libdir}/*.la
+#%{_libdir}/*.so
+#%{_mandir}/man3/*
+
+%changelog
+#* Wed Sep 08 1999 O.Elliyasa <osman@Cable.EU.org>
+* Wed Jan 07 2004 Puerco Cerdo <pog@usvx.net>
+#* Sun Aug 27 1995 Puerco Cerdo <puerco@uservers.net>
+- Se hace este spec
+
