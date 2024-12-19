@@ -32,26 +32,24 @@ type Implementation interface {
 type defaultImplementation struct{}
 
 // CheckSourceFiles
-func (di *defaultImplementation) CheckSourceFiles(cx context.Context, manifest *spec.Manifest) error {
+func (di *defaultImplementation) CheckSourceFiles(_ context.Context, manifest *spec.Manifest) error {
 	// TODO: Extract cwd from context
 	notFound := []string{}
 	for _, file := range manifest.Files {
 		if _, err := os.Stat(file.Source); err != nil {
 			if err != os.ErrNotExist {
 				return fmt.Errorf("error checking for file: %w", err)
-			} else {
-				notFound = append(notFound, file.Source)
 			}
+			notFound = append(notFound, file.Source)
 		}
 	}
 	if len(notFound) > 0 {
 		return fmt.Errorf("source files not found: %v", notFound)
 	}
 	return nil
-
 }
 
-// BuildRpmSpec builds the RPM spec file from the manfiest data and returns the path
+// BuildRpmSpec builds the RPM spec file from the manifest data and returns the path
 func (di *defaultImplementation) BuildRpmSpec(
 	ctx context.Context, opts *build.Options, sourceWriter source.Writer, omanifest *spec.Manifest,
 ) (string, error) {
@@ -60,7 +58,7 @@ func (di *defaultImplementation) BuildRpmSpec(
 	}
 
 	// Get the package version
-	var ver = opts.Version
+	ver := opts.Version
 	// if there is no specific version set in the options, then
 	// we MUST have an autocomputed version in the options.
 	if opts.Version == nil {
@@ -69,8 +67,10 @@ func (di *defaultImplementation) BuildRpmSpec(
 			return "", errors.New("unable to read build context")
 		}
 
-		if ver = buildContext.(build.Context).Version; ver == nil {
-			return "", errors.New("no version set in options or found in build context")
+		if bc, ok := buildContext.(build.Context); ok {
+			if ver = bc.Version; ver == nil {
+				return "", errors.New("no version set in options or found in build context")
+			}
 		}
 	}
 
@@ -91,7 +91,7 @@ func (di *defaultImplementation) BuildRpmSpec(
 
 	// prep_file_commands is the list of commands that will be executed in
 	// the %prep section of the RPM build
-	prep_file_commands := ""
+	prepFileCommands := ""
 
 	// When building, rpmbuild will cd to the BUILD directory. This means that the repo
 	// directory is lost in the ether. Hence, we need to capture this as soon as possible,
@@ -102,25 +102,24 @@ func (di *defaultImplementation) BuildRpmSpec(
 
 	// Process the main component files
 	p2, b2 := processComponentFiles(sourceWriter, &manifest.Component)
-	prep_file_commands += p2
+	prepFileCommands += p2
 	for _, p := range b2 {
 		buildrootDirectoryList[p] = p
 	}
 
 	for i := range manifest.Components {
 		p2, b2 := processComponentFiles(sourceWriter, manifest.Components[i])
-		prep_file_commands += p2
+		prepFileCommands += p2
 		for _, p := range b2 {
 			buildrootDirectoryList[p] = p
 		}
 	}
 
 	for dirname := range buildrootDirectoryList {
-		prep_file_commands += fmt.Sprintf("%%{__mkdir_p} %%{buildroot}%s || exit 111\n", dirname)
+		prepFileCommands += fmt.Sprintf("%%{__mkdir_p} %%{buildroot}%s || exit 111\n", dirname)
 	}
 
 	tmpl, err := template.New("template.tmpl").Parse(Template)
-
 	if err != nil {
 		return "", fmt.Errorf("error parsing template: %w", err)
 	}
@@ -132,7 +131,7 @@ func (di *defaultImplementation) BuildRpmSpec(
 
 	if err := tmpl.Execute(f, map[string]interface{}{
 		"Manifest":           manifest,
-		"PrepFileCommands":   prep_file_commands,
+		"PrepFileCommands":   prepFileCommands,
 		"Version":            ver.String,
 		"Release":            ver.Release,
 		"BuildrootDirectory": buildrootDirectoryList,
@@ -145,23 +144,18 @@ func (di *defaultImplementation) BuildRpmSpec(
 }
 
 // processComponentFiles
-func processComponentFiles(sourceWriter source.Writer, component *spec.Component) (string, map[string]string) {
-	buildrootDirectoryList := map[string]string{}
-	prepFileCommands := ""
+func processComponentFiles(sourceWriter source.Writer, component *spec.Component) (prepFileCommands string, buildrootDirectoryList map[string]string) {
+	buildrootDirectoryList = map[string]string{}
 	for _, filedata := range component.Files {
 		// Handle directories, either empty/non-existent (expressed with '%DIR%') or
 		// already existing in the sourceWriter path, in which case they will be
 		// copied recursively.
-		if filedata.Source == "%DIR%" || util.IsDir(filepath.Join(sourceWriter.Path(), filedata.Destination)) {
-			// if filedata.Destination == "" {
-			// 	logrus.Warnf("skipping file #%d from component %q as it is empty dir with no destination", i, component.Name)
-			// 	continue
-			// }
+		if filedata.Source == DIR || util.IsDir(filepath.Join(sourceWriter.Path(), filedata.Destination)) {
 			prepFileCommands += fmt.Sprintf("%%{__mkdir_p} %%{buildroot}/%s\n", filedata.Destination)
 
 			// If the file entry source exists in the sourcewriter's path, add
 			// instructions to the spec to copy it recursively:
-			if filedata.Source != "%DIR%" && util.IsDir(filepath.Join(sourceWriter.Path(), filedata.Destination)) {
+			if filedata.Source != DIR && util.IsDir(filepath.Join(sourceWriter.Path(), filedata.Destination)) {
 				prepFileCommands += fmt.Sprintf(
 					"%%{__cp} -rL %s/* $RPM_BUILD_ROOT/%s || :\n",
 					filepath.Join(sourceWriter.Path(), filedata.Source),
@@ -169,7 +163,7 @@ func processComponentFiles(sourceWriter source.Writer, component *spec.Component
 				)
 			}
 
-			if filedata.Source != "%DIR%" {
+			if filedata.Source != DIR {
 				dirpath := path.Clean(filedata.Destination)
 				buildrootDirectoryList[dirpath] = dirpath
 			}
@@ -203,10 +197,9 @@ func processComponentFiles(sourceWriter source.Writer, component *spec.Component
 
 // BuildRpms builds the RPMs packages shelling out to rpmbuild
 func (di *defaultImplementation) BuildRpms(
-	ctx context.Context, opts *build.Options, specPath string, sourceWriter source.Writer,
+	_ context.Context, _ *build.Options, specPath string, sourceWriter source.Writer,
 ) (results build.Result, err error) {
-	// tmp, err := os.CreateTemp("", "broo-*")
-	//  Este es el comando que vamos a correr:
+	// We'll shell out to rpmbuild and run this:
 	rpmProc := command.New(
 		"rpmbuild", "-bb", specPath, "-vv", "--buildroot", sourceWriter.Path(), "--target", "noarch", // 2>&1",
 	)

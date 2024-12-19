@@ -45,7 +45,9 @@ func (di *defaultEngineImplementation) EnsureVersion(ctx context.Context, opts *
 		return fmt.Errorf("computing next version: %w", err)
 	}
 
-	buildContext.(*build.Context).Version = ver
+	if bc, ok := buildContext.(*build.Context); ok {
+		bc.Version = ver
+	}
 	return nil
 }
 
@@ -59,7 +61,7 @@ func (di *defaultEngineImplementation) ParseManifest(_ context.Context, path str
 }
 
 // CheckSourceFiles
-func (di *defaultEngineImplementation) CheckSourceFiles(ctx context.Context, manifest *spec.Manifest) error {
+func (di *defaultEngineImplementation) CheckSourceFiles(_ context.Context, manifest *spec.Manifest) error {
 	// TODO: Extract cwd from context
 	// TODO use source reader
 	notFound := []string{}
@@ -67,9 +69,8 @@ func (di *defaultEngineImplementation) CheckSourceFiles(ctx context.Context, man
 		if _, err := os.Stat(file.Source); err != nil {
 			if err != os.ErrNotExist {
 				return fmt.Errorf("error checking for file: %w", err)
-			} else {
-				notFound = append(notFound, file.Source)
 			}
+			notFound = append(notFound, file.Source)
 		}
 	}
 

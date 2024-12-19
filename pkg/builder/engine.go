@@ -73,7 +73,7 @@ func (eng *Engine) Build(ctx context.Context, opts *build.Options) error {
 	return nil
 }
 
-// getSourceReader returns a source.Reader appropiate for the files defined
+// getSourceReader returns a source.Reader appropriate for the files defined
 // in the manifest.
 func getSourceReader(manifest *spec.Manifest) (source.Reader, error) {
 	for _, c := range append([]*spec.Component{&manifest.Component}, manifest.Components...) {
@@ -84,8 +84,10 @@ func getSourceReader(manifest *spec.Manifest) (source.Reader, error) {
 		}
 	}
 
-	return source.NewFilesystemReader(os.DirFS(".").(fs.StatFS)), nil
-
+	if sfs, ok := os.DirFS(".").(fs.StatFS); ok {
+		return source.NewFilesystemReader(sfs), nil
+	}
+	return nil, fmt.Errorf("filesystem not usable, need to implement io.StatFS")
 }
 
 // Returns a package worker for the specified type

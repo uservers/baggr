@@ -9,7 +9,7 @@ import (
 	"github.com/uservers/baggr/pkg/spec"
 )
 
-var ErrIsDir error = errors.New("path is a directory")
+var ErrIsDir = errors.New("path is a directory")
 
 // Reader is an interface that defines the method to read the
 // files which will be packaged in the new package.

@@ -14,9 +14,6 @@ import (
 )
 
 func TestBuildRpmSpec(t *testing.T) {
-	type specCheck struct {
-		version string
-	}
 	di := defaultImplementation{}
 	// Build a context to pass a version
 	ctx := context.WithValue(context.Background(), build.ContextKey{}, build.Context{

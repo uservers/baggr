@@ -20,9 +20,10 @@ import (
 	"github.com/uservers/baggr/pkg/spec"
 )
 
+// failReader implements an io.Reader that always fails
 type failReader struct{}
 
-func (*failReader) Read(b []byte) (int, error) {
+func (*failReader) Read(_ []byte) (int, error) {
 	return 0, errors.New("ERROR")
 }
 

@@ -90,8 +90,9 @@ func TestFSROpenPath(t *testing.T) {
 			}
 
 			require.NotNil(t, rdr)
-			require.NoError(t, rdr.(io.Closer).Close())
+			if cl, ok := rdr.(io.Closer); ok {
+				require.NoError(t, cl.Close())
+			}
 		})
 	}
-
 }

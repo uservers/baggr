@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/uservers/baggr/pkg/spec"
 )
 
@@ -21,9 +22,9 @@ type DirWriter struct {
 	path string
 }
 
-func NewDirWriter(path string) *DirWriter {
+func NewDirWriter(dirPath string) *DirWriter {
 	return &DirWriter{
-		path: path,
+		path: dirPath,
 	}
 }
 
@@ -85,7 +86,7 @@ func (dw DirWriter) CopyDirectory(ctx context.Context, r Reader, specFile *spec.
 
 // CopyFile copies the data stream we got from the reader to a file in the
 // package filesystem
-func (dw DirWriter) CopyFile(ctx context.Context, r io.Reader, specFile *spec.File) error {
+func (dw DirWriter) CopyFile(_ context.Context, r io.Reader, specFile *spec.File) error {
 	if dw.path == "" {
 		return fmt.Errorf("unable to copy file, no path defined")
 	}
@@ -113,14 +114,15 @@ func (dw DirWriter) CopyFile(ctx context.Context, r io.Reader, specFile *spec.Fi
 	}
 
 	// Copy the reader stream
-	_, err = io.Copy(destFile, r)
-	if err != nil {
+	if _, err = io.Copy(destFile, r); err != nil {
 		return fmt.Errorf("copying data stream: %w", err)
 	}
 
 	// Close the destination file
-	if _, ok := r.(io.Closer); ok {
-		r.(io.Closer).Close()
+	if cl, ok := r.(io.Closer); ok {
+		if err := cl.Close(); err != nil {
+			logrus.Errorf("closing copied stream failed: %v", err)
+		}
 	}
 
 	return nil
